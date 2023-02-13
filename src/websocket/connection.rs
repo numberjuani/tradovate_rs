@@ -1,9 +1,11 @@
+use std::time::Duration;
+
 use crate::client::{Protocol, ResourceType, TradovateClient};
 use futures::{
     stream::{SplitSink, SplitStream},
     SinkExt, StreamExt,
 };
-use tokio::net::TcpStream;
+use tokio::{net::TcpStream, time};
 use tokio_tungstenite::{
     tungstenite::{Error, Message},
     MaybeTlsStream, WebSocketStream,
@@ -44,10 +46,14 @@ impl TradovateClient {
         for (index, request) in requests.iter().enumerate() {
             write.send(Text(request.subscribe(index + 2))).await?;
         }
-        tokio::try_join!(
-            keep_listening(&mut reader, on_message),
-            send_heartbeats(write)
-        )?;
+        let sleep = time::sleep(Duration::from_secs(20));
+        tokio::pin!(sleep);
+        tokio::select!(
+            biased;
+            _ = &mut sleep => {},
+            _ = keep_listening(&mut reader, on_message) => {},
+            _ = send_heartbeats(write) => {}
+        );
         Ok(())
     }
 }

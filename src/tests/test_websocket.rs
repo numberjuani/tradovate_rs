@@ -14,6 +14,7 @@ async fn test_market_data_socket() {
         .unwrap();
     let data_requests = vec![
         MarketDataRequest::new(DepthOfMarket, "ESH3"),
+        MarketDataRequest::new(Chart, "ESH3"),
     ];
     client
         .connect_to_market_data_socket(parse_messages, data_requests)

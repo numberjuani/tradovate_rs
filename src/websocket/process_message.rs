@@ -19,7 +19,7 @@ pub fn parse_messages(message:String) {
                             MarketData::DepthOfMarket => {
                                 match serde_json::from_value::<OrderBooks>(json_data["d"].clone()) {
                                     Ok(dom_data) => {
-                                        error!("{:#?}", dom_data);
+                                        println!("{:#?}", dom_data);
                                     },
                                     Err(e) => error!("error parsing dom data: {}", e)
                                 }
@@ -29,7 +29,7 @@ pub fn parse_messages(message:String) {
                             MarketData::Chart => {
                                 match serde_json::from_value::<ChartData>(json_data["d"].clone()) {
                                     Ok(chart_data) => {
-                                        error!("{:#?}", chart_data.get_all_ts_items());
+                                        println!("{:#?}", chart_data.get_all_ts_items());
                                     },
                                     Err(e) => error!("error parsing chart data: {}", e)
                                 }
