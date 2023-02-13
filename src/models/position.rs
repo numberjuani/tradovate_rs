@@ -1,8 +1,11 @@
+use chrono::NaiveDate;
+use chrono::Utc;
 use serde::Deserialize;
+use serde::Deserializer;
 use serde::Serialize;
 use rust_decimal::Decimal;
 use chrono::DateTime;
-use crate::models::position::parse_timestamp::parse_timestamp;
+use serde::de;
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -12,7 +15,8 @@ pub struct Position {
     pub contract_id: i64,
     #[serde(deserialize_with = "parse_timestamp")]
     pub timestamp: DateTime<chrono::Utc>,
-    pub trade_date: TradeDate,
+    #[serde(deserialize_with = "parse_date")]
+    pub trade_date: NaiveDate,
     pub net_pos: i64,
     pub net_price: f64,
     pub bought: i64,
@@ -35,21 +39,26 @@ pub struct TradeDate {
     pub day: i64,
 }
 
-//2023-02-13T18:47:25.552Z
-mod parse_timestamp {
-    use chrono::DateTime;
-    use chrono::Utc;
-    use serde::Deserialize;
-    use serde::de;
-    use serde::Deserializer;
 
-    pub fn parse_timestamp<'de, D>(deserializer: D) -> Result<DateTime<Utc>, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let s: String = Deserialize::deserialize(deserializer)?;
-        let dt = chrono::NaiveDateTime::parse_from_str(&s, "%Y-%m-%dT%H:%M:%S%.fZ")
-            .map_err(de::Error::custom)?;
-        Ok(chrono::DateTime::<Utc>::from_utc(dt, Utc))
-    }
+pub fn parse_timestamp<'de, D>(deserializer: D) -> Result<DateTime<Utc>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s: String = Deserialize::deserialize(deserializer)?;
+    let dt = chrono::NaiveDateTime::parse_from_str(&s, "%Y-%m-%dT%H:%M:%S%.fZ")
+        .map_err(de::Error::custom)?;
+    Ok(chrono::DateTime::<Utc>::from_utc(dt, Utc))
+}
+
+
+
+pub fn parse_date<'de, D>(deserializer: D) -> Result<NaiveDate, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let trade_date = TradeDate::deserialize(deserializer)?;
+    let s: String = format!("{}-{}-{}", trade_date.year, trade_date.month, trade_date.day);
+    let dt = chrono::NaiveDate::parse_from_str(&s, "%Y-%m-%d")
+        .map_err(de::Error::custom)?;
+    Ok(dt)
 }

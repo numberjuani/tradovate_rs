@@ -1,10 +1,12 @@
 
-use chrono::Duration;
 use serde_json::{json, Value};
+use serde::Serialize;
+use serde::Deserialize;
 
-
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum MarketData {
+    #[serde(rename(deserialize = "md"))]
     DepthOfMarket,
     Quote,
     Histogram,
@@ -69,7 +71,7 @@ impl MarketDataRequest {
 }
 
 pub fn get_tick_chart_request_body(symbol: &str) -> Value {
-    let time_stamp = chrono::Utc::now() - Duration::minutes(1);
+    let time_stamp = chrono::Utc::now();
     let formatted = time_stamp.to_rfc3339();
     json!({
       "symbol": symbol,
