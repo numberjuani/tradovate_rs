@@ -1,11 +1,11 @@
-use std::time::Duration;
+
 
 use crate::client::{Protocol, ResourceType, TradovateClient};
 use futures::{
     stream::{SplitSink, SplitStream},
     SinkExt, StreamExt,
 };
-use tokio::{net::TcpStream, time};
+use tokio::{net::TcpStream};
 use tokio_tungstenite::{
     tungstenite::{Error, Message},
     MaybeTlsStream, WebSocketStream,
@@ -16,11 +16,19 @@ use super::requests::MarketDataRequest;
 use crate::websocket::connection::Message::Text;
 
 pub async fn keep_listening(
-    reader: &mut ReadWs,
+    mut reader:ReadWs,
     on_message: fn(String) -> (),
+    max_num_messages: Option<i64>,
 ) -> Result<(), Error> {
+    let mut message_num = 0;
     while let Some(msg) = reader.next().await {
         on_message(msg?.into_text()?);
+        message_num += 1;
+        if let Some(max_num_messages) = max_num_messages {
+            if message_num >= max_num_messages {
+                break;
+            }
+        }
     }
     Ok(())
 }
@@ -38,21 +46,19 @@ impl TradovateClient {
         &self,
         on_message: fn(String) -> (),
         requests: Vec<MarketDataRequest>,
+        max_num_messages: Option<i64>,
     ) -> Result<(), Error> {
         let url = self.url(ResourceType::MarketData, Protocol::Wss);
         let (ws_stream, _) = tokio_tungstenite::connect_async(url).await?;
-        let (mut write, mut reader) = ws_stream.split();
+        let (mut write, reader) = ws_stream.split();
         write.send(Text(self.ws_auth_msg())).await?;
         for (index, request) in requests.iter().enumerate() {
             write.send(Text(request.subscribe(index + 2))).await?;
         }
-        let sleep = time::sleep(Duration::from_secs(20));
-        tokio::pin!(sleep);
         tokio::select!(
             biased;
-            _ = &mut sleep => {},
-            _ = keep_listening(&mut reader, on_message) => {},
-            _ = send_heartbeats(write) => {}
+            _ = tokio::spawn(keep_listening(reader, on_message,max_num_messages)) => {},
+            _ = tokio::spawn(send_heartbeats(write)) => {}
         );
         Ok(())
     }

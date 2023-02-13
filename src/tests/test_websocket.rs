@@ -17,7 +17,7 @@ async fn test_market_data_socket() {
         MarketDataRequest::new(Chart, "ESH3"),
     ];
     client
-        .connect_to_market_data_socket(parse_messages, data_requests)
+        .connect_to_market_data_socket(parse_messages, data_requests,Some(20))
         .await
         .unwrap();
 }
