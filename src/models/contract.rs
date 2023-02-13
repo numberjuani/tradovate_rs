@@ -4,7 +4,7 @@ use serde::Deserialize;
 use serde::Deserializer;
 use serde::Serialize;
 use serde::de;
-
+use rust_decimal::Decimal;
 
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -14,7 +14,7 @@ pub struct Contract {
     pub name: String,
     pub contract_maturity_id: i64,
     pub status: String,
-    pub provider_tick_size: f64,
+    pub provider_tick_size: Decimal,
 }
 
 

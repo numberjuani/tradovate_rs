@@ -1,6 +1,6 @@
 use serde::Deserialize;
 use serde::Serialize;
-
+use rust_decimal::Decimal;
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -16,10 +16,10 @@ pub struct Product {
     pub risk_discount_contract_group_id: Option<i64>,
     pub status: String,
     pub months: Option<String>,
-    pub value_per_point: f64,
+    pub value_per_point: Decimal,
     pub price_format_type: String,
     pub price_format: i64,
-    pub tick_size: f64,
+    pub tick_size: Decimal,
     pub allow_provider_contract_info: bool,
     pub is_micro: bool,
     pub market_data_source: String,
@@ -30,9 +30,9 @@ pub struct Product {
     pub spread_type: Option<String>,
     pub rollover_months: Option<String>,
     pub strike_format: Option<i64>,
-    pub strike_display_multiplier: Option<f64>,
+    pub strike_display_multiplier: Option<Decimal>,
     pub settlement_method: Option<String>,
-    pub event_payout: Option<f64>,
+    pub event_payout: Option<Decimal>,
     pub underlying_reference_id: Option<i64>,
     pub is_secured: Option<bool>,
 }
