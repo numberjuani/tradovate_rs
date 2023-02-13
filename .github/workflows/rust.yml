@@ -8,6 +8,12 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  TRADOVATE_CID: ${{ secrets.TRADOVATE_CID }},
+  TRADOVATE_SECRET: ${{ secrets.TRADOVATE_SECRET }},
+  TRADOVATE_APP_ID: ${{ secrets.TRADOVATE_APP_ID }}
+  TRADOVATE_VERSION: ${{ secrets.TRADOVATE_VERSION }}
+  TRADOVATE_USERNAME: ${{ secrets.TRADOVATE_USERNAME }}
+  TRADOVATE_PASSWORD: ${{ secrets.TRADOVATE_PASSWORD }}
 
 jobs:
   build:
@@ -19,11 +25,4 @@ jobs:
     - name: Build
       run: cargo build --verbose
     - name: Run tests
-      env:
-        TRADOVATE_CID: ${{ secrets.TRADOVATE_CID }}
-        TRADOVATE_SECRET: ${{ secrets.TRADOVATE_SECRET }}
-        TRADOVATE_APP_ID: ${{ secrets.TRADOVATE_APP_ID }}
-        TRADOVATE_VERSION: ${{ secrets.TRADOVATE_VERSION }}
-        TRADOVATE_USERNAME: ${{ secrets.TRADOVATE_USERNAME }}
-        TRADOVATE_PASSWORD: ${{ secrets.TRADOVATE_PASSWORD }}
       run: cargo test --verbose
