@@ -1,0 +1,29 @@
+name: Rust
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Build
+      run: cargo build --verbose
+    - name: Run tests
+      env:
+        TRADOVATE_CID: ${{ secrets.TRADOVATE_CID }}
+        TRADOVATE_SECRET: ${{ secrets.TRADOVATE_SECRET }}
+        TRADOVATE_APP_ID: ${{ secrets.TRADOVATE_APP_ID }}
+        TRADOVATE_VERSION: ${{ secrets.TRADOVATE_VERSION }}
+        TRADOVATE_USERNAME: ${{ secrets.TRADOVATE_USERNAME }}
+        TRADOVATE_PASSWORD: ${{ secrets.TRADOVATE_PASSWORD }}
+      run: cargo test --verbose
