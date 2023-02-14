@@ -21,5 +21,5 @@ async fn test_market_data_socket() {
         .await
         .unwrap();
     assert!(time_and_sales.read().await.len() > 0);
-    assert!(orderbooks.read().await.doms.len() > 0);
+    assert!(orderbooks.read().await.last().unwrap().doms.len() > 0);
 }

@@ -8,7 +8,7 @@ use serde::Deserialize;
 use serde::Deserializer;
 use serde::Serialize;
 use tokio::sync::RwLock;
-pub type OrderBooksRWL = Arc<RwLock<OrderBooks>>;
+pub type OrderBooksRWL = Arc<RwLock<Vec<OrderBooks>>>;
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -44,6 +44,6 @@ where
 }
 
 
-pub fn new_orderbooks_rwl() -> Arc<RwLock<OrderBooks>> {
-    Arc::new(RwLock::new(OrderBooks::default()))
+pub fn new_orderbooks_rwl() -> Arc<RwLock<Vec<OrderBooks>>> {
+    Arc::new(RwLock::new(Vec::new()))
 }

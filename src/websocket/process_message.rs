@@ -20,7 +20,7 @@ pub async fn parse_messages(message:String,orderbooks_rwl:OrderBooksRWL,time_and
                                 match serde_json::from_value::<OrderBooks>(json_data["d"].clone()) {
                                     Ok(dom_data) => {
                                         let mut books = orderbooks_rwl.write().await;
-                                        *books = dom_data;
+                                        books.push(dom_data);
                                     },
                                     Err(e) => error!("error parsing dom data: {}", e)
                                 }
