@@ -32,16 +32,6 @@ pub struct TimeAndSalesItem {
     pub timestamp: i64,
     pub receipt_delay: i64,
 }
-impl TimeAndSalesItem {
-    pub fn notional(&self) -> Decimal {
-        let unsigned = self.price * Decimal::new(self.qty,0);
-        match self.action {
-            OrderAction::Buy => unsigned,
-            OrderAction::Sell => -unsigned,
-            OrderAction::Unknown => Decimal::new(0,0),
-        }
-    }
-}
 
 pub fn new_time_and_sales_rwl(capacity:usize) -> Arc<RwLock<Vec<TimeAndSalesItem>>> {
     Arc::new(RwLock::new(Vec::with_capacity(capacity)))

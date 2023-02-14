@@ -15,7 +15,15 @@ pub type OrderBooksRWL = Arc<RwLock<Vec<OrderBooks>>>;
 pub struct OrderBooks {
     pub doms: Vec<OrderBook>,
 }
-
+impl OrderBooks {
+    pub fn to_csv_format(&self) -> String {
+        let mut csv = String::new();
+        for book in &self.doms {
+            csv.push_str(&book.to_csv_format());
+        }
+        csv
+    }
+}
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OrderBook {
@@ -25,7 +33,30 @@ pub struct OrderBook {
     pub bids: Vec<Depth>,
     pub offers: Vec<Depth>,
 }
-
+impl OrderBook {
+    pub fn to_csv_format(&self) -> String {
+        //sort the asks in ascending order
+        let mut csv = String::new();
+        let mut asks = self.offers.clone();
+        asks.sort_unstable_by_key(|a| a.price);
+        //sort the bids in descending order
+        let mut bids = self.bids.clone();
+        bids.sort_unstable_by_key(|b| b.price);
+        let asks = asks
+            .iter()
+            .map(|a| format!("{}" ,-a.size))
+            .collect::<Vec<String>>()
+            .join(",");
+        let bids = bids
+            .iter()
+            .map(|b| format!("{}" ,b.size))
+            .collect::<Vec<String>>()
+            .join(",");
+        let row = format!("{},{},{},{}\n", asks, bids, self.timestamp.timestamp_millis(),self.contract_id);
+        csv.push_str(&row);
+        csv
+    }
+}
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Depth {

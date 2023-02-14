@@ -1,3 +1,5 @@
+use crate::data_utils::string_to_csv;
+
 
 
 #[tokio::test]
@@ -21,5 +23,10 @@ async fn test_market_data_socket() {
         .await
         .unwrap();
     assert!(time_and_sales.read().await.len() > 0);
+    let mut csv = String::new();
+    for book in orderbooks.read().await.iter() {
+        csv.push_str(&book.to_csv_format());
+    }
+    string_to_csv(&csv, "test_book.csv");
     assert!(orderbooks.read().await.last().unwrap().doms.len() > 0);
 }
