@@ -1,7 +1,10 @@
+use std::sync::Arc;
+
 use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde::Serialize;
-
+use tokio::sync::RwLock;
+pub type TimeAndSalesRWL = Arc<RwLock<Vec<TimeAndSalesItem>>>;
 
 
 
@@ -40,3 +43,6 @@ impl TimeAndSalesItem {
     }
 }
 
+pub fn new_time_and_sales_rwl(capacity:usize) -> Arc<RwLock<Vec<TimeAndSalesItem>>> {
+    Arc::new(RwLock::new(Vec::with_capacity(capacity)))
+}

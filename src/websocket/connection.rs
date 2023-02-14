@@ -1,6 +1,6 @@
 
 
-use crate::client::{Protocol, ResourceType, TradovateClient};
+use crate::{client::{Protocol, ResourceType, TradovateClient}, models::{orderbook::OrderBooksRWL, time_and_sales::TimeAndSalesRWL}};
 use futures::{
     stream::{SplitSink, SplitStream},
     SinkExt, StreamExt,
@@ -12,17 +12,18 @@ use tokio_tungstenite::{
 };
 pub type WriteWs = SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>;
 pub type ReadWs = SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>;
-use super::requests::MarketDataRequest;
+use super::{requests::MarketDataRequest, process_message::parse_messages};
 use crate::websocket::connection::Message::Text;
 
 pub async fn keep_listening(
     mut reader:ReadWs,
-    on_message: fn(String) -> (),
     max_num_messages: Option<i64>,
+    orderbooks_rwl: OrderBooksRWL,
+    time_and_sales_rwl: TimeAndSalesRWL,
 ) -> Result<(), Error> {
     let mut message_num = 0;
     while let Some(msg) = reader.next().await {
-        on_message(msg?.into_text()?);
+        parse_messages(msg?.into_text()?, orderbooks_rwl.clone(), time_and_sales_rwl.clone()).await;
         message_num += 1;
         if let Some(max_num_messages) = max_num_messages {
             if message_num >= max_num_messages {
@@ -44,9 +45,10 @@ pub async fn send_heartbeats(mut writer: WriteWs) -> Result<(), Error> {
 impl TradovateClient {
     pub async fn connect_to_market_data_socket(
         &self,
-        on_message: fn(String) -> (),
         requests: Vec<MarketDataRequest>,
         max_num_messages: Option<i64>,
+        orderbooks_rwl: OrderBooksRWL,
+        time_and_sales_rwl: TimeAndSalesRWL,
     ) -> Result<(), Error> {
         let url = self.url(ResourceType::MarketData, Protocol::Wss);
         let (ws_stream, _) = tokio_tungstenite::connect_async(url).await?;
@@ -57,7 +59,7 @@ impl TradovateClient {
         }
         tokio::select!(
             biased;
-            _ = tokio::spawn(keep_listening(reader, on_message,max_num_messages)) => {},
+            _ = tokio::spawn(keep_listening(reader,max_num_messages,orderbooks_rwl,time_and_sales_rwl)) => {},
             _ = tokio::spawn(send_heartbeats(write)) => {}
         );
         Ok(())

@@ -1,12 +1,12 @@
 use serde_json::{Value, Map};
 
 
-use crate::models::{tick_chart::ChartData, orderbook::OrderBooks};
+use crate::models::{tick_chart::ChartData, orderbook::{OrderBooks, OrderBooksRWL}, time_and_sales::TimeAndSalesRWL};
 use log::error;
 use super::requests::MarketData;
 
 
-pub fn parse_messages(message:String) {
+pub async fn parse_messages(message:String,orderbooks_rwl:OrderBooksRWL,time_and_sales_rwl:TimeAndSalesRWL) {
     if message.len() < 3 {
         return;
     }
@@ -19,7 +19,8 @@ pub fn parse_messages(message:String) {
                             MarketData::DepthOfMarket => {
                                 match serde_json::from_value::<OrderBooks>(json_data["d"].clone()) {
                                     Ok(dom_data) => {
-                                        println!("{:#?}", dom_data);
+                                        let mut books = orderbooks_rwl.write().await;
+                                        *books = dom_data;
                                     },
                                     Err(e) => error!("error parsing dom data: {}", e)
                                 }
@@ -29,7 +30,9 @@ pub fn parse_messages(message:String) {
                             MarketData::Chart => {
                                 match serde_json::from_value::<ChartData>(json_data["d"].clone()) {
                                     Ok(chart_data) => {
-                                        println!("{:#?}", chart_data.get_all_ts_items());
+                                        let ts_items = chart_data.get_all_ts_items();
+                                        let mut ts = time_and_sales_rwl.write().await;
+                                        ts.append(&mut ts_items.clone());
                                     },
                                     Err(e) => error!("error parsing chart data: {}", e)
                                 }
