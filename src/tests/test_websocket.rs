@@ -17,7 +17,7 @@ async fn test_market_data_socket() {
         MarketDataRequest::new(Chart, "ESH3"),
     ];
     let orderbooks = new_orderbooks_rwl();
-    let time_and_sales = new_time_and_sales_rwl(1000000);
+    let time_and_sales = new_time_and_sales_rwl();
     client
         .connect_to_market_data_socket(data_requests,Some(30),orderbooks.clone(),time_and_sales.clone())
         .await

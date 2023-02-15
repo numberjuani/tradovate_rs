@@ -59,6 +59,7 @@ impl OrderBook {
 }
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[serde(default)]
 pub struct Depth {
     pub price: Decimal,
     pub size: i64,

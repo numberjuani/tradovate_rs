@@ -8,6 +8,7 @@ pub type TimeAndSalesRWL = Arc<RwLock<Vec<TimeAndSalesItem>>>;
 
 
 
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Copy,Eq, PartialOrd, Ord,Default)]
 pub enum OrderAction {
     Buy,
@@ -33,6 +34,6 @@ pub struct TimeAndSalesItem {
     pub receipt_delay: i64,
 }
 
-pub fn new_time_and_sales_rwl(capacity:usize) -> Arc<RwLock<Vec<TimeAndSalesItem>>> {
-    Arc::new(RwLock::new(Vec::with_capacity(capacity)))
+pub fn new_time_and_sales_rwl() -> Arc<RwLock<Vec<TimeAndSalesItem>>> {
+    Arc::new(RwLock::new(Vec::new()))
 }
