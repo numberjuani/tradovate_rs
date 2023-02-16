@@ -42,18 +42,18 @@ async fn test_market_replay() {
     use crate::websocket::requests::MarketDataRequest;
     use crate::models::{orderbook::new_orderbooks_rwl, time_and_sales::new_time_and_sales_rwl};
     log4rs::init_file("log_config.yaml", Default::default()).unwrap();
-    let naivedatetime_utc = chrono::NaiveDate::from_ymd_opt(2022, 9, 15).unwrap().and_hms_opt(0, 00, 0).unwrap();
-    let datetime_utc = chrono::DateTime:: <chrono::Utc> ::from_utc(naivedatetime_utc, chrono::Utc);
+    let start_date = chrono::NaiveDate::from_ymd_opt(2022, 9, 15).unwrap().and_hms_opt(0, 00, 0).unwrap();
+    let start_date = chrono::DateTime:: <chrono::Utc> ::from_utc(start_date, chrono::Utc);
     let end_date = chrono::NaiveDate::from_ymd_opt(2022, 9, 15).unwrap().and_hms_opt(0, 01, 0).unwrap();
     let end_date = chrono::DateTime:: <chrono::Utc> ::from_utc(end_date, chrono::Utc);
-    let settings = crate::websocket::market_replay::MarketReplaySettings{ start_timestamp: datetime_utc, speed: 400, initial_balance: 51000 };
+    let settings = crate::websocket::market_replay::MarketReplaySettings{ start_timestamp: start_date, speed: 400, initial_balance: 51000 };
     let client = TradovateClient::load_from_env(crate::client::Server::Live)
         .authenticate()
         .await
         .unwrap();
     let data_requests = vec![
         MarketDataRequest::new(DepthOfMarket, "ESZ2"),
-        MarketDataRequest::historical_chart(Chart, "ESZ2",datetime_utc),
+        MarketDataRequest::historical_chart(Chart, "ESZ2",start_date),
         MarketDataRequest::new(Quotes, "ESZ2"),
     ];
     let orderbooks = new_orderbooks_rwl();

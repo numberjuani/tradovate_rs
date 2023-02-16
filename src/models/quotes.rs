@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use chrono::DateTime;
 use chrono::Utc;
+use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde::Deserializer;
 use serde::Serialize;
@@ -29,7 +30,6 @@ pub struct Quote {
     #[serde(deserialize_with = "parse_timestamp")]
     pub timestamp: DateTime<chrono::Utc>,
 }
-
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[serde(default)]
@@ -58,20 +58,20 @@ pub struct Entries {
 #[serde(rename_all = "camelCase")]
 #[serde(default)]
 pub struct PriceSize {
-    pub price: f64,
+    pub price: Decimal,
     pub size: i64,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HighPrice {
-    pub price: f64,
+    pub price: Decimal,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LowPrice {
-    pub price: f64,
+    pub price: Decimal,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -83,13 +83,13 @@ pub struct OpenInterest {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OpeningPrice {
-    pub price: f64,
+    pub price: Decimal,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SettlementPrice {
-    pub price: f64,
+    pub price: Decimal,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
