@@ -28,7 +28,7 @@ async fn test_products_list() {
 async fn test_find_contract() {
     let mut client = crate::client::TradovateClient::load_from_env(crate::client::Server::Live);
     client = client.authenticate().await.unwrap();
-    let contract = client.find_contract("ESH3").await;
+    let contract = client.find_contract("ESZ2").await;
     println!("{:#?}", contract);
     assert!(contract.is_ok())
 }
@@ -50,3 +50,5 @@ async fn test_positions() {
     println!("{:#?}", positions);
     assert!(positions.is_ok())
 }
+
+

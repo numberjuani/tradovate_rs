@@ -2,7 +2,7 @@ use reqwest::header;
 use serde_json::{json, Value};
 
 use crate::{
-    constants::{AUTH_FILENAME, DEMO_TRADING_URL, LIVE_MARKET_DATA_URL, LIVE_TRADING_URL},
+    constants::{AUTH_FILENAME, DEMO_TRADING_URL, LIVE_MARKET_DATA_URL, LIVE_TRADING_URL, MARKET_REPLAY_WS},
     error::Error,
     models::{
         access_token::AccessTokenInfo,
@@ -22,6 +22,7 @@ pub enum Server {
 pub enum ResourceType {
     Trading,
     MarketData,
+    MarketReplay
 }
 pub enum Protocol {
     Https,
@@ -125,10 +126,12 @@ impl TradovateClient {
             Server::Live => match resource_type {
                 ResourceType::Trading => protocol.add_prefix(LIVE_TRADING_URL),
                 ResourceType::MarketData => protocol.add_prefix(LIVE_MARKET_DATA_URL),
+                ResourceType::MarketReplay => protocol.add_prefix(MARKET_REPLAY_WS),
             },
             Server::Demo => match resource_type {
                 ResourceType::Trading => protocol.add_prefix(DEMO_TRADING_URL),
                 ResourceType::MarketData => protocol.add_prefix(LIVE_MARKET_DATA_URL),
+                ResourceType::MarketReplay => protocol.add_prefix(MARKET_REPLAY_WS),
             },
         }
     }
