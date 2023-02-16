@@ -5,3 +5,5 @@ pub mod position;
 pub mod tick_chart;
 pub mod time_and_sales;
 pub mod orderbook;
+pub mod quotes;
+pub mod replay_clock;

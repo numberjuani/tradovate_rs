@@ -1,4 +1,5 @@
 
+use serde::de::Error;
 use serde_json::{json, Value};
 use serde::Serialize;
 use serde::Deserialize;
@@ -6,19 +7,30 @@ use chrono::DateTime;
 use chrono::Utc;
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize,Default)]
-#[serde(rename_all = "camelCase")]
 pub enum MarketData {
-    #[serde(rename(deserialize = "md"))]
+    #[serde(rename(deserialize = "doms"))]
     DepthOfMarket,
-    #[default]
-    Quote,
     Histogram,
     Chart,
-    #[serde(rename(deserialize = "shutdown"))]
     Shutdown,
+    #[serde(rename(deserialize = "clock"))]
     Clock,
+    #[default]
+    Quotes,
 }
-
+impl MarketData {
+    pub fn from_string(data_type: &str) -> Result<Self,serde_json::Error> {
+        match data_type {
+            "doms" => Ok(MarketData::DepthOfMarket),
+            "histogram" => Ok(MarketData::Histogram),
+            "chart" => Ok(MarketData::Chart),
+            "shutdown" => Ok(MarketData::Shutdown),
+            "clock" => Ok(MarketData::Clock),
+            "quotes" => Ok(MarketData::Quotes),
+            _ => Err(serde_json::Error::custom("unknown market data type")),
+        }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, PartialOrd,Default)]
 pub struct MarketDataRequest {
@@ -48,16 +60,15 @@ impl MarketDataRequest {
         }
     }
     pub fn subscribe(&self, request_id: usize) -> String {
-        use MarketData::*;
         let endpoint = match self.data_type {
-            DepthOfMarket => "md/subscribeDOM",
-            Quote => "md/subscribeQuote",
-            Histogram => "md/subscribeHistogram",
-            Chart => "md/getChart",
-            Shutdown => "shutdown",
-            Clock => todo!(),
+            MarketData::Histogram => "md/subscribeHistogram",
+            MarketData::Chart => "md/getChart",
+            MarketData::Shutdown => "shutdown",
+            MarketData::DepthOfMarket => "md/subscribeDOM",
+            MarketData::Quotes => "md/subscribeQuote",
+            MarketData::Clock => todo!(),
         };
-        let request_body = if self.data_type != Chart {
+        let request_body = if self.data_type != MarketData::Chart {
             json!({
                 "symbol": self.symbol
             })
@@ -69,7 +80,7 @@ impl MarketDataRequest {
     pub fn unsubscribe(&self, request_id: i32) -> String {
         let endpoint = match self.data_type {
             MarketData::DepthOfMarket => "md/unsubscribeDOM",
-            MarketData::Quote => "md/unsubscribeQuote",
+            MarketData::Quotes => "md/unsubscribeQuote",
             MarketData::Histogram => "md/unsubscribeHistogram",
             MarketData::Chart => "md/cancelChart",
             MarketData::Shutdown => todo!(),

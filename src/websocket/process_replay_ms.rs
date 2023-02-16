@@ -1,20 +1,16 @@
+use chrono::{DateTime, Utc};
+use log::{error, warn, info};
 use serde_json::{Value, Map};
 
+use crate::{models::{orderbook::{OrderBooksRWL, OrderBooks}, time_and_sales::TimeAndSalesRWL, tick_chart::ChartData, quotes::{Quotes, QuotesRWL}, replay_clock::ReplayClock}, websocket::process_message::TradovateWSError};
 
-use crate::models::{tick_chart::ChartData, orderbook::{OrderBooks, OrderBooksRWL}, time_and_sales::TimeAndSalesRWL, quotes::{QuotesRWL, Quotes}};
-use log::{error, warn, info};
 use super::requests::MarketData;
 
-#[derive(Debug)]
-pub enum TradovateWSError {
-    ConnectionError,
-    ParseError(serde_json::Error),
-    UnknownError(String),
-}
 
-pub async fn parse_messages(message:String,orderbooks_rwl:OrderBooksRWL,time_and_sales_rwl:TimeAndSalesRWL,quotes:QuotesRWL) -> Result<(),TradovateWSError> {
+///Returns true if the job is complete. It is configured mostly to use market replay to gather data.
+pub async fn parse_replay_messages(message:String,orderbooks_rwl:OrderBooksRWL,time_and_sales_rwl:TimeAndSalesRWL,quotes:QuotesRWL,end_time:DateTime<Utc>) -> Result<bool,TradovateWSError> {
     if message.len() < 3 {
-        return Ok(())
+        return Ok(false)
     }
     match serde_json::from_str::<Map<String,Value>>(&message[2..message.len()-1]) {
         Ok(json_data) => {
@@ -32,7 +28,7 @@ pub async fn parse_messages(message:String,orderbooks_rwl:OrderBooksRWL,time_and
                                     Ok(dom_data) => {
                                         let mut books = orderbooks_rwl.write().await;
                                         books.push(dom_data);
-                                        Ok(())
+                                        Ok(false)
                                     },
                                     Err(e) => {
                                         error!("error parsing dom data: {}", e);
@@ -45,7 +41,7 @@ pub async fn parse_messages(message:String,orderbooks_rwl:OrderBooksRWL,time_and
                                     Ok(quote) => {
                                         let mut quotes = quotes.write().await;
                                         quotes.push(quote);
-                                        Ok(())
+                                        Ok(false)
                                     },
                                     Err(e) => {
                                         error!("error parsing dom data: {}", e);
@@ -60,7 +56,7 @@ pub async fn parse_messages(message:String,orderbooks_rwl:OrderBooksRWL,time_and
                                         let ts_items = chart_data.get_all_ts_items();
                                         let mut ts = time_and_sales_rwl.write().await;
                                         ts.append(&mut ts_items.clone());
-                                        Ok(())
+                                        Ok(false)
                                     },
                                     Err(e) => {
                                         error!("error parsing chart data: {}", e);
@@ -74,20 +70,28 @@ pub async fn parse_messages(message:String,orderbooks_rwl:OrderBooksRWL,time_and
                                 return Err(TradovateWSError::ConnectionError)
                             },
                             MarketData::Clock => {
-                                info!("received clock message from server");
-                                return Ok(())
+                                match serde_json::from_str::<ReplayClock>(json_data["d"].clone().as_str().unwrap()) {
+                                    Ok(p_clock) => {
+                                        println!("{:#?}",p_clock);
+                                        return Ok(p_clock.time >= end_time)
+                                    },
+                                    Err(e) => {
+                                        error!("error parsing clock data: {}", e);
+                                        Err(TradovateWSError::ParseError(e))
+                                    }
+                                }
                             },
                         }
                     },
                     Err(e) => {
                         error!("error parsing market data type: {}", e);
-                        Err(TradovateWSError::ParseError(e))
+                        Ok(false)
                     }
                 }
             } else if json_data.contains_key("s") {
                 if json_data["s"].as_i64().unwrap() == 200 {
                     info!("successfully subscribed to market data");
-                    return Ok(())
+                    return Ok(false)
                 } else {
                     error!("received error message from server");
                     warn!("{}", message);
@@ -96,7 +100,7 @@ pub async fn parse_messages(message:String,orderbooks_rwl:OrderBooksRWL,time_and
             } else {
                 error!("received unknown message from server");
                 warn!("{}", message);
-                return Ok(())
+                return Ok(false)
             }
         },
         Err(e) => {
@@ -105,4 +109,3 @@ pub async fn parse_messages(message:String,orderbooks_rwl:OrderBooksRWL,time_and
         }
     }
 }
-
