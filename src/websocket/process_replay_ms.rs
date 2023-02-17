@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use log::{error, warn, info};
+use log::{error, warn, info, debug};
 use serde_json::{Value, Map};
 
 use crate::{models::{orderbook::{OrderBooksRWL, OrderBooks}, time_and_sales::TimeAndSalesRWL, tick_chart::ChartData, quotes::{Quotes, QuotesRWL}, replay_clock::ReplayClock}, websocket::process_message::TradovateWSError};
@@ -39,6 +39,7 @@ pub async fn parse_replay_messages(message:String,orderbooks_rwl:OrderBooksRWL,t
                             MarketData::Quotes => {
                                 match serde_json::from_value::<Quotes>(json_data["d"].clone()) {
                                     Ok(quote) => {
+                                        debug!("quote: {:#?}", quote);
                                         let mut quotes = quotes.write().await;
                                         quotes.push(quote);
                                         Ok(false)
@@ -53,6 +54,7 @@ pub async fn parse_replay_messages(message:String,orderbooks_rwl:OrderBooksRWL,t
                             MarketData::Chart => {
                                 match serde_json::from_value::<ChartData>(json_data["d"].clone()) {
                                     Ok(chart_data) => {
+                                        debug!("chart data: {:#?}", chart_data);
                                         let ts_items = chart_data.get_all_ts_items();
                                         let mut ts = time_and_sales_rwl.write().await;
                                         ts.append(&mut ts_items.clone());
