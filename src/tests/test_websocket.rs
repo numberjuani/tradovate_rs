@@ -1,7 +1,5 @@
 use crate::{data_utils::string_to_csv};
 
-
-
 #[tokio::test]
 async fn test_market_data_socket() {
     use crate::client::TradovateClient;

@@ -74,7 +74,6 @@ pub async fn parse_replay_messages(message:String,orderbooks_rwl:OrderBooksRWL,t
                             MarketData::Clock => {
                                 match serde_json::from_str::<ReplayClock>(json_data["d"].clone().as_str().unwrap()) {
                                     Ok(p_clock) => {
-                                        println!("{:#?}",p_clock);
                                         return Ok(p_clock.time >= end_time)
                                     },
                                     Err(e) => {
