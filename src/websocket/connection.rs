@@ -1,6 +1,6 @@
 
 
-use crate::{client::{Protocol, ResourceType, TradovateClient}, models::{orderbook::{OrderBooksRWL}, time_and_sales::{TimeAndSalesRWL}, quotes::QuotesRWL}, time_utils::calculate_seconds_to_cst_time, websocket::market_replay::replay_messages};
+use crate::{client::{Protocol, ResourceType, TradovateClient}, models::{orderbook::{OrderBooksRWL}, time_and_sales::{TimeAndSalesRWL}, quotes::QuotesRWL}, websocket::market_replay::replay_messages};
 use chrono::{DateTime, Utc};
 use futures::{
     stream::{SplitSink, SplitStream},
@@ -21,14 +21,13 @@ pub async fn keep_listening(
     mut reader:ReadWs,
     orderbooks_rwl: OrderBooksRWL,
     time_and_sales_rwl: TimeAndSalesRWL,
-    quotes: QuotesRWL,
 ) -> Result<(), Error> {
     while let Some(msg) = reader.next().await {
         match msg {
             Ok(msg) => {
                 match msg {
                     Message::Text(txtmsg) => {
-                        if let Err(e) = parse_messages(txtmsg, orderbooks_rwl.clone(), time_and_sales_rwl.clone(),quotes.clone()).await {
+                        if let Err(e) = parse_messages(txtmsg, orderbooks_rwl.clone(), time_and_sales_rwl.clone()).await {
                             error!("Error in websocket {:#?}", e);
                             return Err(Error::ConnectionClosed);
                         }
@@ -66,11 +65,7 @@ impl TradovateClient {
         requests: &Vec<MarketDataRequest>,
         orderbooks_rwl: OrderBooksRWL,
         time_and_sales_rwl: TimeAndSalesRWL,
-        quotes: QuotesRWL,
-        disconnect_time:&str
     ) -> Result<(), Error> {
-        let disconnect_split = disconnect_time.split(":").collect::<Vec<&str>>();
-        let seconds_to_disconnect = calculate_seconds_to_cst_time(disconnect_split[0].parse::<u32>().unwrap(),disconnect_split[1].parse::<u32>().unwrap());
         let url = self.url(ResourceType::MarketData, Protocol::Wss);
         let (ws_stream, response) = tokio_tungstenite::connect_async(url).await?;
         info!("Connected to market data socket, status {:#?}", response.status());
@@ -80,15 +75,9 @@ impl TradovateClient {
         for (index, request) in requests.iter().enumerate() {
             write.send(Text(request.subscribe(index + 2))).await?;
         }
-        let timeout = tokio::time::sleep(std::time::Duration::from_secs(seconds_to_disconnect));
-        tokio::pin!(timeout);
         tokio::select!(
             biased;
-            _ = &mut timeout => {
-                info!("timeout");
-                return Ok(());
-            }
-            listen_result = tokio::spawn(keep_listening(reader,orderbooks_rwl,time_and_sales_rwl,quotes)) => {
+            listen_result = tokio::spawn(keep_listening(reader,orderbooks_rwl,time_and_sales_rwl)) => {
                 if let Err(e) = listen_result.unwrap() {
                     error!("Error in websocket {:#?}", e);
                     return Err(Error::ConnectionClosed);

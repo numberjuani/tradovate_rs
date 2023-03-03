@@ -1,7 +1,7 @@
 use serde_json::{Value, Map};
 
 
-use crate::models::{tick_chart::ChartData, orderbook::{OrderBooks, OrderBooksRWL}, time_and_sales::TimeAndSalesRWL, quotes::{QuotesRWL, Quotes}};
+use crate::models::{tick_chart::ChartData, orderbook::{OrderBooks, OrderBooksRWL}, time_and_sales::TimeAndSalesRWL};
 use log::{error, warn, info};
 use super::requests::MarketData;
 
@@ -10,9 +10,10 @@ pub enum TradovateWSError {
     ConnectionError,
     ParseError(serde_json::Error),
     UnknownError(String),
+    TooManyRetries,
 }
 
-pub async fn parse_messages(message:String,orderbooks_rwl:OrderBooksRWL,time_and_sales_rwl:TimeAndSalesRWL,quotes:QuotesRWL) -> Result<(),TradovateWSError> {
+pub async fn parse_messages(message:String,orderbooks_rwl:OrderBooksRWL,time_and_sales_rwl:TimeAndSalesRWL) -> Result<(),TradovateWSError> {
     if message.len() < 3 {
         return Ok(())
     }
@@ -41,17 +42,7 @@ pub async fn parse_messages(message:String,orderbooks_rwl:OrderBooksRWL,time_and
                                 }
                             },
                             MarketData::Quotes => {
-                                match serde_json::from_value::<Quotes>(json_data["d"].clone()) {
-                                    Ok(quote) => {
-                                        let mut quotes = quotes.write().await;
-                                        quotes.push(quote);
-                                        Ok(())
-                                    },
-                                    Err(e) => {
-                                        error!("error parsing dom data: {}", e);
-                                        Err(TradovateWSError::ParseError(e))
-                                    }
-                                }
+                                Ok(())
                             },
                             MarketData::Histogram => todo!(),
                             MarketData::Chart => {

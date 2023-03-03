@@ -32,6 +32,7 @@ pub struct TimeAndSalesItem {
     pub ask: Decimal,
     pub timestamp: i64,
     pub receipt_delay: i64,
+    pub base_timestamp: i64,
 }
 
 pub fn new_time_and_sales_rwl() -> Arc<RwLock<Vec<TimeAndSalesItem>>> {

@@ -21,11 +21,7 @@ impl ChartData {
             .par_iter()
             .map(|chart| chart.get_ts_items())
             .collect_into_vec(&mut vec_of_vec);
-        let mut output_vec: Vec<TimeAndSalesItem> = Vec::new();
-        for vec in vec_of_vec {
-            output_vec.extend(vec);
-        }
-        output_vec
+        vec_of_vec.into_iter().flatten().collect()
     }
 }
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -118,6 +114,7 @@ impl Tick {
             receipt_delay: delay,
             bid,
             ask,
+            base_timestamp,
         }
     }
 }

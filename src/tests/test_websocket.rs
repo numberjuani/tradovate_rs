@@ -1,4 +1,4 @@
-use crate::{data_utils::string_to_csv};
+
 
 #[tokio::test]
 async fn test_market_data_socket() {
@@ -18,17 +18,11 @@ async fn test_market_data_socket() {
     ];
     let orderbooks = new_orderbooks_rwl();
     let time_and_sales = new_time_and_sales_rwl();
-    let quotes = crate::models::quotes::new_quotes_rwl();
     client
-        .connect_to_market_data_socket(&data_requests,orderbooks.clone(),time_and_sales.clone(),quotes.clone(),"15:15")
+        .connect_to_market_data_socket(&data_requests,orderbooks.clone(),time_and_sales.clone())
         .await
         .unwrap();
     assert!(time_and_sales.read().await.len() > 0);
-    let mut csv = String::new();
-    for book in orderbooks.read().await.iter() {
-        csv.push_str(&book.to_csv_format());
-    }
-    string_to_csv(&csv, "test_book.csv");
     assert!(orderbooks.read().await.last().unwrap().doms.len() > 0);
 }
 

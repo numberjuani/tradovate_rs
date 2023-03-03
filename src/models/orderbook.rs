@@ -2,6 +2,10 @@ use std::sync::Arc;
 
 use chrono::DateTime;
 use chrono::Utc;
+use rayon::prelude::IndexedParallelIterator;
+use rayon::prelude::IntoParallelRefMutIterator;
+use rayon::prelude::ParallelIterator;
+use rayon::slice::ParallelSliceMut;
 use rust_decimal::Decimal;
 use serde::de;
 use serde::Deserialize;
@@ -15,15 +19,7 @@ pub type OrderBooksRWL = Arc<RwLock<Vec<OrderBooks>>>;
 pub struct OrderBooks {
     pub doms: Vec<OrderBook>,
 }
-impl OrderBooks {
-    pub fn to_csv_format(&self) -> String {
-        let mut csv = String::new();
-        for book in &self.doms {
-            csv.push_str(&book.to_csv_format());
-        }
-        csv
-    }
-}
+
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OrderBook {
@@ -31,30 +27,39 @@ pub struct OrderBook {
     #[serde(deserialize_with = "parse_timestamp")]
     pub timestamp: DateTime<chrono::Utc>,
     pub bids: Vec<Depth>,
-    pub offers: Vec<Depth>,
+    #[serde(rename = "offers")]
+    pub asks: Vec<Depth>,
 }
 impl OrderBook {
-    pub fn to_csv_format(&self) -> String {
-        //sort the asks in ascending order
-        let mut csv = String::new();
-        let mut asks = self.offers.clone();
-        asks.sort_unstable_by_key(|a| a.price);
-        //sort the bids in descending order
+    pub fn normalize(&self) -> Self {
         let mut bids = self.bids.clone();
-        bids.sort_unstable_by_key(|b| b.price);
-        let asks = asks
-            .iter()
-            .map(|a| format!("{}" ,-a.size))
-            .collect::<Vec<String>>()
-            .join(",");
-        let bids = bids
-            .iter()
-            .map(|b| format!("{}" ,b.size))
-            .collect::<Vec<String>>()
-            .join(",");
-        let row = format!("{},{},{},{}\n", asks, bids, self.timestamp.timestamp_millis(),self.contract_id);
-        csv.push_str(&row);
-        csv
+        let mut asks = self.asks.clone();
+        bids.par_sort_unstable_by_key(|x| -x.price);
+        bids.par_iter_mut().enumerate().for_each(|(index,bid)| {
+            bid.price = Decimal::new(-(index as i64+1),0);
+        });
+        while bids.len() < 30 {
+            bids.push(Depth {
+                price: Decimal::new(-(bids.len() as i64+1),0),
+                size: 0,
+            });
+        }
+        asks.par_sort_unstable_by_key(|x| x.price);
+        asks.par_iter_mut().enumerate().for_each(|(index,ask)| {
+            ask.price = Decimal::new(index as i64+1,0);
+        });
+        while asks.len() < 30 {
+            asks.push(Depth {
+                price: Decimal::new(asks.len() as i64+1,0),
+                size: 0,
+            });
+        }
+        Self {
+            contract_id: self.contract_id,
+            timestamp: self.timestamp,
+            bids,
+            asks,
+        }
     }
 }
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
