@@ -1,5 +1,7 @@
 
 
+use std::sync::Arc;
+
 use crate::{client::{Protocol, ResourceType, TradovateClient}, models::{orderbook::{OrderBooksRWL}, time_and_sales::{TimeAndSalesRWL}, quotes::QuotesRWL}, websocket::market_replay::replay_messages};
 use chrono::{DateTime, Utc};
 use futures::{
@@ -7,7 +9,7 @@ use futures::{
     SinkExt, StreamExt,
 };
 use log::{error, info, warn};
-use tokio::{net::TcpStream};
+use tokio::{net::TcpStream, sync::Notify};
 use tokio_tungstenite::{
     tungstenite::{Error, Message},
     MaybeTlsStream, WebSocketStream,
@@ -21,13 +23,15 @@ pub async fn keep_listening(
     mut reader:ReadWs,
     orderbooks_rwl: OrderBooksRWL,
     time_and_sales_rwl: TimeAndSalesRWL,
+    notify:Arc<Notify>,
+    threshold:usize,
 ) -> Result<(), Error> {
     while let Some(msg) = reader.next().await {
         match msg {
             Ok(msg) => {
                 match msg {
                     Message::Text(txtmsg) => {
-                        if let Err(e) = parse_messages(txtmsg, orderbooks_rwl.clone(), time_and_sales_rwl.clone()).await {
+                        if let Err(e) = parse_messages(txtmsg, orderbooks_rwl.clone(), time_and_sales_rwl.clone(),notify.clone(),threshold).await {
                             error!("Error in websocket {:#?}", e);
                             return Err(Error::ConnectionClosed);
                         }
@@ -65,19 +69,21 @@ impl TradovateClient {
         requests: &Vec<MarketDataRequest>,
         orderbooks_rwl: OrderBooksRWL,
         time_and_sales_rwl: TimeAndSalesRWL,
+        notify:Arc<Notify>,
+        threshold:usize,
     ) -> Result<(), Error> {
         let url = self.url(ResourceType::MarketData, Protocol::Wss);
         let (ws_stream, response) = tokio_tungstenite::connect_async(url).await?;
         info!("Connected to market data socket, status {:#?}", response.status());
         let (mut write, reader) = ws_stream.split();
         write.send(Text(self.ws_auth_msg())).await?;
-        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        //tokio::time::sleep(std::time::Duration::from_millis(100)).await;
         for (index, request) in requests.iter().enumerate() {
             write.send(Text(request.subscribe(index + 2))).await?;
         }
         tokio::select!(
             biased;
-            listen_result = tokio::spawn(keep_listening(reader,orderbooks_rwl,time_and_sales_rwl)) => {
+            listen_result = tokio::spawn(keep_listening(reader,orderbooks_rwl,time_and_sales_rwl,notify,threshold)) => {
                 if let Err(e) = listen_result.unwrap() {
                     error!("Error in websocket {:#?}", e);
                     return Err(Error::ConnectionClosed);

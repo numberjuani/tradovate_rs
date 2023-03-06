@@ -2,7 +2,8 @@ use std::sync::Arc;
 
 use chrono::DateTime;
 use chrono::Utc;
-use rayon::prelude::IndexedParallelIterator;
+
+use rayon::prelude::IntoParallelRefIterator;
 use rayon::prelude::IntoParallelRefMutIterator;
 use rayon::prelude::ParallelIterator;
 use rayon::slice::ParallelSliceMut;
@@ -31,35 +32,56 @@ pub struct OrderBook {
     pub asks: Vec<Depth>,
 }
 impl OrderBook {
-    pub fn normalize(&self) -> Self {
+    pub fn normalize(&self,total_bid:i64,total_ask:i64) -> Self {
         let mut bids = self.bids.clone();
         let mut asks = self.asks.clone();
         bids.par_sort_unstable_by_key(|x| -x.price);
-        bids.par_iter_mut().enumerate().for_each(|(index,bid)| {
-            bid.price = Decimal::new(-(index as i64+1),0);
-        });
-        while bids.len() < 30 {
-            bids.push(Depth {
-                price: Decimal::new(-(bids.len() as i64+1),0),
-                size: 0,
-            });
-        }
         asks.par_sort_unstable_by_key(|x| x.price);
-        asks.par_iter_mut().enumerate().for_each(|(index,ask)| {
-            ask.price = Decimal::new(index as i64+1,0);
+        bids.par_iter_mut().for_each(|b| {
+            b.size = 100*b.size/total_bid;
         });
-        while asks.len() < 30 {
-            asks.push(Depth {
-                price: Decimal::new(asks.len() as i64+1,0),
-                size: 0,
-            });
-        }
+        asks.par_iter_mut().for_each(|a| {
+            a.size = 100*a.size/total_ask;
+        });
         Self {
             contract_id: self.contract_id,
             timestamp: self.timestamp,
             bids,
             asks,
         }
+    }
+    pub fn normalize_calc(&self) -> Self {
+        let mut bids = self.bids.clone();
+        let mut asks = self.asks.clone();
+        bids.par_sort_unstable_by_key(|x| -x.price);
+        asks.par_sort_unstable_by_key(|x| x.price);
+        let total_bid = bids.par_iter().map(|x| x.size).sum::<i64>();
+        bids.par_iter_mut().for_each(|b| {
+            b.size = 100*b.size/total_bid;
+        });
+        let total_ask = asks.par_iter().map(|x| x.size).sum::<i64>();
+        asks.par_iter_mut().for_each(|a| {
+            a.size = 100*a.size/total_ask;
+        });
+        Self {
+            contract_id: self.contract_id,
+            timestamp: self.timestamp,
+            bids,
+            asks,
+        }
+    }
+    pub fn to_feature(&self) -> Vec<f32> {
+        let mut out = Vec::new();
+        let total_bid = self.bids.par_iter().map(|x| x.size).sum::<i64>();
+        let total_ask = self.asks.par_iter().map(|x| x.size).sum::<i64>();
+        let ratio = total_bid as f32 / total_ask as f32;
+        out.extend(vec![total_bid as f32, total_ask as f32, ratio]);
+        let normalized = self.normalize(total_bid,total_ask);
+        for i in 0..30 {
+            out.push(normalized.bids[i].size as f32);
+            out.push(normalized.asks[i].size as f32);
+        }
+        out
     }
 }
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]

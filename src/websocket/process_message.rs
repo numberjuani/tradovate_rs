@@ -1,4 +1,7 @@
+use std::sync::Arc;
+
 use serde_json::{Value, Map};
+use tokio::sync::Notify;
 
 
 use crate::models::{tick_chart::ChartData, orderbook::{OrderBooks, OrderBooksRWL}, time_and_sales::TimeAndSalesRWL};
@@ -13,7 +16,7 @@ pub enum TradovateWSError {
     TooManyRetries,
 }
 
-pub async fn parse_messages(message:String,orderbooks_rwl:OrderBooksRWL,time_and_sales_rwl:TimeAndSalesRWL) -> Result<(),TradovateWSError> {
+pub async fn parse_messages(message:String,orderbooks_rwl:OrderBooksRWL,time_and_sales_rwl:TimeAndSalesRWL,notify:Arc<Notify>,threshold:usize) -> Result<(),TradovateWSError> {
     if message.len() < 3 {
         return Ok(())
     }
@@ -51,6 +54,9 @@ pub async fn parse_messages(message:String,orderbooks_rwl:OrderBooksRWL,time_and
                                         let ts_items = chart_data.get_all_ts_items();
                                         let mut ts = time_and_sales_rwl.write().await;
                                         ts.append(&mut ts_items.clone());
+                                        if ts.len() > threshold {
+                                            notify.notify_one();
+                                        }
                                         Ok(())
                                     },
                                     Err(e) => {

@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use rust_decimal::Decimal;
+use rust_decimal::prelude::ToPrimitive;
 use serde::Deserialize;
 use serde::Serialize;
 use tokio::sync::RwLock;
@@ -34,7 +35,22 @@ pub struct TimeAndSalesItem {
     pub receipt_delay: i64,
     pub base_timestamp: i64,
 }
-
+impl TimeAndSalesItem {
+    pub fn to_feature(&self) -> Vec<f32> {
+        let net_qty = if self.action == OrderAction::Buy {
+            self.qty as f32
+        } else {
+            -self.qty as f32
+        };
+        vec![
+            net_qty,
+            self.price.to_f32().unwrap(),
+            self.bid.to_f32().unwrap(),
+            self.ask.to_f32().unwrap(),
+            self.timestamp as f32,
+        ]
+    }
+}
 pub fn new_time_and_sales_rwl() -> Arc<RwLock<Vec<TimeAndSalesItem>>> {
     Arc::new(RwLock::new(Vec::new()))
 }

@@ -7,3 +7,4 @@ pub const DEMO_TRADING_URL: &str = "demo.tradovateapi.com";
 // AUTH FILENAME
 pub const AUTH_FILENAME: &str = "tradovate_auth.json";
 pub const MARKET_REPLAY_WS: &str = "replay.tradovateapi.com";
+
