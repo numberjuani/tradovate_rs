@@ -118,7 +118,7 @@ impl TradovateClient {
             "appVersion": self.app_version,
             "cid":        self.cid,
             "sec":        self.secret,
-            "deviceId":   machine_uid::get().unwrap()
+            "deviceId":   machine_uid::get().unwrap_or("buster-linux-docker".to_string())
         })
     }
     pub fn url(&self, resource_type: ResourceType, protocol: Protocol) -> String {
