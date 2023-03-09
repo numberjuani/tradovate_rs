@@ -1,3 +1,4 @@
+use log::debug;
 use reqwest::header;
 use serde_json::{json, Value};
 
@@ -7,9 +8,9 @@ use crate::{
     models::{
         access_token::AccessTokenInfo,
         contract::{Contract, Maturity},
-        product::Product, position::Position,
+        product::Product, position::Position, orders::OrderTicket, account::Balances,
     },
-    rest::endpoints::{Endpoint, CONTRACT_DEPS, CONTRACT_FIND, CONTRACT_MATURITY, PRODUCTS_LIST, LIST_POSITIONS},
+    rest::endpoints::{Endpoint, CONTRACT_DEPS, CONTRACT_FIND, CONTRACT_MATURITY, PRODUCTS_LIST, LIST_POSITIONS, PLACE_ORDER, ACCOUNTS_LIST, CASH_BALANCE_LIST},
     utils::delete_file,
 };
 
@@ -156,7 +157,9 @@ impl TradovateClient {
         if let Some(access_token_info) = &self.access_token_info {
             request = request.bearer_auth(&access_token_info.access_token);
         }
-        request.send().await.unwrap().text().await
+        let response = request.send().await?;
+        debug!("Response: {:?}", response);
+        Ok(response.text().await?)
     }
     pub fn ws_auth_msg(&self) -> String {
         format!("authorize\n1\n\n{}", self.access_token_info.as_ref().unwrap().access_token)
@@ -253,6 +256,42 @@ impl TradovateClient {
             Ok(positions) => {
                 match serde_json::from_str::<Vec<Position>>(&positions) {
                     Ok(positions) => Ok(positions),
+                    Err(e) => Err(Error::Json(e)),
+                }
+            },
+            Err(e) => Err(Error::Reqwest(e)),
+        }
+    }
+    pub async fn place_order(&self,order_ticket:OrderTicket) -> Result<Value,Error> {
+        let value = json!(order_ticket);
+        debug!("{}",serde_json::to_string_pretty(&value).unwrap());
+        match self.call_endpoint(PLACE_ORDER, None, Some(value)).await {
+            Ok(order) => {
+                debug!("{}",order);
+                match serde_json::from_str::<Value>(&order) {
+                    Ok(order) => Ok(order),
+                    Err(e) => Err(Error::Json(e)),
+                }
+            },
+            Err(e) => Err(Error::Reqwest(e)),
+        }
+    }
+    pub async fn get_accounts_list(&self) -> Result<Value,Error> {
+        match self.call_endpoint(ACCOUNTS_LIST, None, None).await {
+            Ok(order) => {
+                match serde_json::from_str::<Value>(&order) {
+                    Ok(order) => Ok(order),
+                    Err(e) => Err(Error::Json(e)),
+                }
+            },
+            Err(e) => Err(Error::Reqwest(e)),
+        }
+    }
+    pub async fn get_cash_balances(&self) -> Result<Balances,Error> {
+        match self.call_endpoint(CASH_BALANCE_LIST, None, None).await {
+            Ok(order) => {
+                match serde_json::from_str::<Balances>(&order) {
+                    Ok(order) => Ok(order),
                     Err(e) => Err(Error::Json(e)),
                 }
             },

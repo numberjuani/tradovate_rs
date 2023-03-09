@@ -44,3 +44,18 @@ pub const LIST_POSITIONS: Endpoint = Endpoint {
     path: "/v1/position/list",
     method: Method::GET,
 };
+
+pub const PLACE_ORDER: Endpoint = Endpoint {
+    path: "/v1/order/placeorder",
+    method: Method::POST,
+};
+
+pub const ACCOUNTS_LIST: Endpoint = Endpoint {
+    path: "/v1/account/list",
+    method: Method::GET,
+};
+
+pub const CASH_BALANCE_LIST: Endpoint = Endpoint {
+    path: "/v1/cashBalance/list",
+    method: Method::GET,
+};

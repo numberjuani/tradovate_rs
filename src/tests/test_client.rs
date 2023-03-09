@@ -1,3 +1,7 @@
+
+
+use crate::models::orders::OrderTicket;
+
 #[tokio::test]
 async fn test_auth_token() {
     let mut client = crate::client::TradovateClient::load_from_env(crate::client::Server::Live);
@@ -51,4 +55,33 @@ async fn test_positions() {
     assert!(positions.is_ok())
 }
 
+#[tokio::test]
+async fn test_place_order() {
+    //set env logger to debug
+    log4rs::init_file("log_config.yaml", Default::default()).unwrap();
+    let mut client = crate::client::TradovateClient::load_from_env(crate::client::Server::Demo);
+    client = client.authenticate().await.unwrap();
+    let balances = client.get_cash_balances().await.unwrap();
+    let order = client.place_order(OrderTicket::market_sell(&client.username,balances[0].account_id,"ESH3", 1)).await;
+    println!("{:#?}", order);
+    assert!(order.is_ok())
+}
 
+
+#[tokio::test]
+async fn test_accounts_list() {
+    let mut client = crate::client::TradovateClient::load_from_env(crate::client::Server::Live);
+    client = client.authenticate().await.unwrap();
+    let accounts = client.get_accounts_list().await;
+    println!("{:#?}", accounts);
+    assert!(accounts.is_ok())
+}
+
+#[tokio::test]
+async fn test_balance_list() {
+    let mut client = crate::client::TradovateClient::load_from_env(crate::client::Server::Demo);
+    client = client.authenticate().await.unwrap();
+    let balances = client.get_cash_balances().await;
+    println!("{:#?}", balances);
+    assert!(balances.is_ok())
+}

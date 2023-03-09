@@ -69,12 +69,12 @@ pub async fn parse_replay_messages(message:String,orderbooks_rwl:OrderBooksRWL,t
                             MarketData::Shutdown => {
                                 error!("received shutdown message from server");
                                 warn!("{}", message);
-                                return Err(TradovateWSError::ConnectionError)
+                                Err(TradovateWSError::ConnectionError)
                             },
                             MarketData::Clock => {
                                 match serde_json::from_str::<ReplayClock>(json_data["d"].clone().as_str().unwrap()) {
                                     Ok(p_clock) => {
-                                        return Ok(p_clock.time >= end_time)
+                                        Ok(p_clock.time >= end_time)
                                     },
                                     Err(e) => {
                                         error!("error parsing clock data: {}", e);

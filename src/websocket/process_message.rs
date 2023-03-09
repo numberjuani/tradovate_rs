@@ -1,11 +1,10 @@
-use std::sync::Arc;
 
 use serde_json::{Value, Map};
-use tokio::sync::Notify;
+
 
 
 use crate::models::{tick_chart::ChartData, orderbook::{OrderBooks, OrderBooksRWL}, time_and_sales::TimeAndSalesRWL};
-use log::{error, warn, info};
+use log::{error, warn, info, debug};
 use super::requests::MarketData;
 
 #[derive(Debug)]
@@ -16,7 +15,7 @@ pub enum TradovateWSError {
     TooManyRetries,
 }
 
-pub async fn parse_messages(message:String,orderbooks_rwl:OrderBooksRWL,time_and_sales_rwl:TimeAndSalesRWL,notify:Arc<Notify>,threshold:usize) -> Result<(),TradovateWSError> {
+pub async fn parse_messages(message:String,orderbooks_rwl:OrderBooksRWL,time_and_sales_rwl:TimeAndSalesRWL) -> Result<(),TradovateWSError> {
     if message.len() < 3 {
         return Ok(())
     }
@@ -51,12 +50,8 @@ pub async fn parse_messages(message:String,orderbooks_rwl:OrderBooksRWL,time_and
                             MarketData::Chart => {
                                 match serde_json::from_value::<ChartData>(json_data["d"].clone()) {
                                     Ok(chart_data) => {
-                                        let ts_items = chart_data.get_all_ts_items();
                                         let mut ts = time_and_sales_rwl.write().await;
-                                        ts.append(&mut ts_items.clone());
-                                        if ts.len() > threshold {
-                                            notify.notify_one();
-                                        }
+                                        ts.append(&mut chart_data.get_all_ts_items());
                                         Ok(())
                                     },
                                     Err(e) => {
@@ -68,11 +63,11 @@ pub async fn parse_messages(message:String,orderbooks_rwl:OrderBooksRWL,time_and
                             MarketData::Shutdown => {
                                 error!("received shutdown message from server");
                                 warn!("{}", message);
-                                return Err(TradovateWSError::ConnectionError)
+                                Err(TradovateWSError::ConnectionError)
                             },
                             MarketData::Clock => {
                                 info!("received clock message from server");
-                                return Ok(())
+                                Ok(())
                             },
                         }
                     },
@@ -83,7 +78,7 @@ pub async fn parse_messages(message:String,orderbooks_rwl:OrderBooksRWL,time_and
                 }
             } else if json_data.contains_key("s") {
                 if json_data["s"].as_i64().unwrap() == 200 {
-                    info!("successfully subscribed to market data");
+                    debug!("successfully subscribed to market data");
                     return Ok(())
                 } else {
                     error!("received error message from server");

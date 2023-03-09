@@ -40,7 +40,7 @@ impl Product {
     pub fn round_price_to_nearest_tick(&self, price: Decimal) -> Decimal {
         let price = price / self.tick_size;
         let price = price.round_dp(0);
-        let price = price * self.tick_size;
-        price
+        
+        price * self.tick_size
     }
 }
