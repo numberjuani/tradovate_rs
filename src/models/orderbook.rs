@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+
 use std::sync::Arc;
 
 use chrono::DateTime;
@@ -15,7 +15,7 @@ use serde::Deserializer;
 use serde::Serialize;
 use tokio::sync::RwLock;
 pub type OrderBooksRWL = Arc<RwLock<Vec<OrderBooks>>>;
-use crate::models::records::Record;
+
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OrderBooks {
@@ -71,20 +71,18 @@ impl OrderBook {
             asks,
         }
     }
-    pub fn to_feature(&self,index:i64) -> HashMap<String, Record> {
-        let mut out = HashMap::new();
+    pub fn to_feature(&self) -> Vec<f32> {
+        let mut out = Vec::new();
         let total_bid = self.bids.par_iter().map(|x| x.size).sum::<i64>();
         let total_ask = self.asks.par_iter().map(|x| x.size).sum::<i64>();
-        out.insert("total_bid".to_string(), Record::new(index,Some(total_bid as f32)));
-        out.insert("total_ask".to_string(), Record::new(index,Some(total_ask as f32)));
+        out.push(total_bid as f32);
+        out.push(total_ask as f32);
         let ratio = total_bid as f32 / total_ask as f32;
-        out.insert("ratio".to_string(), Record::new(index,Some(ratio)));
+        out.push(ratio);
         let normalized = self.normalize(total_bid,total_ask);
         for i in 0..30 {
-            let bid_name = format!("normalized_bid_{}", i);
-            let ask_name = format!("normalized_ask_{}", i);
-            out.insert(bid_name, Record::new(index,Some(normalized.bids[i].size as f32)));
-            out.insert(ask_name, Record::new(index,Some(normalized.asks[i].size as f32)));
+            out.push(normalized.bids[i].size as f32);
+            out.push(normalized.asks[i].size as f32);
         }
         out
     }

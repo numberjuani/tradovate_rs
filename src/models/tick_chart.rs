@@ -7,11 +7,9 @@ use serde::Serialize;
 use serde::Deserialize;
 use chrono::NaiveDate;
 use rust_decimal::Decimal;
-use super::records::Record;
 use super::time_and_sales::OrderAction;
 use super::time_and_sales::TimeAndSalesItem;
 use std::cmp::Ordering;
-use std::collections::HashMap;
 
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -220,21 +218,21 @@ pub struct ChartSummary {
     pub last_price: Decimal,
 }
 impl ChartSummary {
-    pub fn to_features(&self,index:i64) -> HashMap<String, Record> {
-        let mut output = HashMap::new();
-        output.insert("net_qty".to_string(), Record::new(index, Some(self.net_qty as f32)));
-        output.insert("mean_net_qty".to_string(), Record::new(index, Some(self.mean_net_qty as f32)));
-        output.insert("abs_qty".to_string(), Record::new(index, Some(self.abs_qty as f32)));
-        output.insert("mean_abs_qty".to_string(), Record::new(index, Some(self.mean_abs_qty as f32)));
-        output.insert("biggest_buy".to_string(), Record::new(index, Some(self.biggest_buy as f32)));
-        output.insert("biggest_sell".to_string(), Record::new(index, Some(self.biggest_sell as f32)));
-        output.insert("timespan".to_string(), Record::new(index, Some(self.timespan as f32)));
-        output.insert("num_ticks".to_string(), Record::new(index, Some(self.num_ticks as f32)));
-        output.insert("last_bid".to_string(), Record::new(index, Some(self.last_bid.to_f32().unwrap())));
-        output.insert("last_ask".to_string(), Record::new(index, Some(self.last_ask.to_f32().unwrap())));
-        output.insert("last_timestamp".to_string(), Record::new(index, Some(self.last_timestamp as f32)));
-        output.insert("last_price".to_string(), Record::new(index, Some(self.last_price.to_f32().unwrap())));
-        output
+    pub fn to_features(&self) -> Vec<f32> {
+        vec![
+            self.net_qty as f32,
+            self.mean_net_qty as f32,
+            self.abs_qty as f32,
+            self.mean_abs_qty as f32,
+            self.biggest_buy as f32,
+            self.biggest_sell as f32,
+            self.timespan as f32,
+            self.num_ticks as f32,
+            self.last_bid.to_f32().unwrap(),
+            self.last_ask.to_f32().unwrap(),
+            self.last_timestamp as f32,
+            self.last_price.to_f32().unwrap(),
+        ]
     }
 }
 
@@ -250,4 +248,6 @@ impl ChartSummary {
 8: last bid
 9: last ask
 10: last timestamp
+11: last price
+...
  */
