@@ -5,7 +5,9 @@ use rust_decimal::prelude::ToPrimitive;
 use serde::Deserialize;
 use serde::Serialize;
 use tokio::sync::RwLock;
-pub type TimeAndSalesRWL = Arc<RwLock<Vec<TimeAndSalesItem>>>;
+
+use super::tick_chart::ChartSummary;
+pub type TimeAndSalesRWL = Arc<RwLock<Vec<ChartSummary>>>;
 
 
 
@@ -23,7 +25,8 @@ impl OrderAction {
     }
 }
 /// A Time and Sales Item represents a single trade and contains info abot its size, price, time, and buy or sell can be inferred.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize,Default)]
+#[serde(default)]
 pub struct TimeAndSalesItem {
     pub historical_id: i64,
     pub action: OrderAction,
@@ -50,7 +53,14 @@ impl TimeAndSalesItem {
             self.timestamp as f32,
         ]
     }
+    pub fn net_qty(&self) -> i64 {
+        if self.action == OrderAction::Buy {
+            self.qty
+        } else {
+            -self.qty
+        }
+    }
 }
-pub fn new_time_and_sales_rwl() -> Arc<RwLock<Vec<TimeAndSalesItem>>> {
+pub fn new_time_and_sales_rwl() -> Arc<RwLock<Vec<ChartSummary>>> {
     Arc::new(RwLock::new(Vec::new()))
 }

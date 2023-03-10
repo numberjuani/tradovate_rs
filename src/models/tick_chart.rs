@@ -1,13 +1,18 @@
 use rayon::prelude::IndexedParallelIterator;
 use rayon::prelude::IntoParallelRefIterator;
 use rayon::prelude::ParallelIterator;
+use rayon::slice::ParallelSliceMut;
+use rust_decimal::prelude::ToPrimitive;
 use serde::Serialize;
 use serde::Deserialize;
 use chrono::NaiveDate;
 use rust_decimal::Decimal;
+use super::records::Record;
 use super::time_and_sales::OrderAction;
 use super::time_and_sales::TimeAndSalesItem;
 use std::cmp::Ordering;
+use std::collections::HashMap;
+
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all(deserialize = "camelCase"))]
@@ -22,6 +27,74 @@ impl ChartData {
             .map(|chart| chart.get_ts_items())
             .collect_into_vec(&mut vec_of_vec);
         vec_of_vec.into_iter().flatten().collect()
+    }
+    pub fn combine_all_ticks(&self) -> Option<ChartSummary>  {
+        let mut items = self.get_all_ts_items();
+        items.par_sort_unstable_by_key(|i| i.timestamp);
+        let mut net_qty = 0;
+        let mut abs_qty = 0;
+        let mut biggest_buy = 0;
+        let mut biggest_sell = 0;
+        if items.len() >= 2 {
+            for item in &items {
+                net_qty += item.net_qty();
+                abs_qty += item.qty.abs();
+                match item.action {
+                    OrderAction::Buy => {
+                        if item.qty > biggest_buy {
+                            biggest_buy = item.qty;
+                        }
+                    }
+                    OrderAction::Sell => {
+                        if item.qty  > biggest_sell {
+                            biggest_sell = item.qty;
+                        }
+                    }
+                    OrderAction::Unknown => {
+                        continue;
+                    },
+                }
+            }
+            let mean_net_qty = net_qty / items.len() as i64;
+            let mean_abs_qty = abs_qty / items.len() as i64;
+            let last_item = items.last().unwrap();
+            let timespan = last_item.timestamp - items.first().unwrap().timestamp;
+            let last_timestamp = last_item.timestamp;
+            let last_bid = last_item.bid;
+            let last_ask = last_item.ask;
+            Some(ChartSummary {
+                net_qty,
+                mean_net_qty,
+                abs_qty,
+                mean_abs_qty,
+                biggest_buy,
+                biggest_sell,
+                timespan,
+                last_timestamp,
+                last_bid,
+                last_ask,
+                num_ticks: items.len(),
+                last_price: last_item.price,
+            })
+        } else if items.len() ==1   {
+            Some(ChartSummary {
+                net_qty : items[0].net_qty(),
+                mean_net_qty: items[0].net_qty(),
+                abs_qty: items[0].qty.abs(),
+                mean_abs_qty: items[0].qty.abs(),
+                biggest_buy : if items[0].action == OrderAction::Buy {items[0].qty.abs()} else {0},
+                biggest_sell : if items[0].action == OrderAction::Sell {items[0].qty.abs()} else {0},
+                timespan: 0,
+                num_ticks: 1,
+                last_bid: items[0].bid,
+                last_ask: items[0].ask,
+                last_timestamp: items[0].timestamp,
+                last_price: items[0].price,
+            })
+        } else {
+            None
+        }
+        
     }
 }
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -63,6 +136,7 @@ impl Chart {
             .collect_into_vec(&mut output_vec);
         output_vec
     }
+    
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -129,3 +203,51 @@ where
         .map_err(serde::de::Error::custom)?;
     Ok(dt)
 }
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ChartSummary {
+    pub net_qty: i64,
+    pub mean_net_qty: i64,
+    pub abs_qty: i64,
+    pub mean_abs_qty: i64,
+    pub biggest_buy: i64,
+    pub biggest_sell: i64,
+    pub timespan: i64,
+    pub num_ticks: usize,
+    pub last_bid: Decimal,
+    pub last_ask: Decimal,
+    pub last_timestamp: i64,
+    pub last_price: Decimal,
+}
+impl ChartSummary {
+    pub fn to_features(&self,index:i64) -> HashMap<String, Record> {
+        let mut output = HashMap::new();
+        output.insert("net_qty".to_string(), Record::new(index, Some(self.net_qty as f32)));
+        output.insert("mean_net_qty".to_string(), Record::new(index, Some(self.mean_net_qty as f32)));
+        output.insert("abs_qty".to_string(), Record::new(index, Some(self.abs_qty as f32)));
+        output.insert("mean_abs_qty".to_string(), Record::new(index, Some(self.mean_abs_qty as f32)));
+        output.insert("biggest_buy".to_string(), Record::new(index, Some(self.biggest_buy as f32)));
+        output.insert("biggest_sell".to_string(), Record::new(index, Some(self.biggest_sell as f32)));
+        output.insert("timespan".to_string(), Record::new(index, Some(self.timespan as f32)));
+        output.insert("num_ticks".to_string(), Record::new(index, Some(self.num_ticks as f32)));
+        output.insert("last_bid".to_string(), Record::new(index, Some(self.last_bid.to_f32().unwrap())));
+        output.insert("last_ask".to_string(), Record::new(index, Some(self.last_ask.to_f32().unwrap())));
+        output.insert("last_timestamp".to_string(), Record::new(index, Some(self.last_timestamp as f32)));
+        output.insert("last_price".to_string(), Record::new(index, Some(self.last_price.to_f32().unwrap())));
+        output
+    }
+}
+
+/*
+0: net qty
+1: mean net qty
+2: abs qty
+3: mean abs qty
+4: biggest buy
+5: biggest sell
+6: timespan
+7: num ticks
+8: last bid
+9: last ask
+10: last timestamp
+ */

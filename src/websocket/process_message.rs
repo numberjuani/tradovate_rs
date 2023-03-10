@@ -50,8 +50,10 @@ pub async fn parse_messages(message:String,orderbooks_rwl:OrderBooksRWL,time_and
                             MarketData::Chart => {
                                 match serde_json::from_value::<ChartData>(json_data["d"].clone()) {
                                     Ok(chart_data) => {
-                                        let mut ts = time_and_sales_rwl.write().await;
-                                        ts.append(&mut chart_data.get_all_ts_items());
+                                        if let Some(combined) = chart_data.combine_all_ticks() {
+                                            let mut ts = time_and_sales_rwl.write().await;
+                                            ts.push(combined);
+                                        }
                                         Ok(())
                                     },
                                     Err(e) => {

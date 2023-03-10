@@ -55,9 +55,10 @@ pub async fn parse_replay_messages(message:String,orderbooks_rwl:OrderBooksRWL,t
                                 match serde_json::from_value::<ChartData>(json_data["d"].clone()) {
                                     Ok(chart_data) => {
                                         debug!("chart data: {:#?}", chart_data);
-                                        let ts_items = chart_data.get_all_ts_items();
-                                        let mut ts = time_and_sales_rwl.write().await;
-                                        ts.append(&mut ts_items.clone());
+                                        if let Some(combined) = chart_data.combine_all_ticks() {
+                                            let mut ts = time_and_sales_rwl.write().await;
+                                            ts.push(combined);
+                                        }
                                         Ok(false)
                                     },
                                     Err(e) => {
