@@ -166,7 +166,7 @@ impl TradovateClient {
     pub fn ws_auth_msg(&self) -> String {
         format!("authorize\n1\n\n{}", self.access_token_info.as_ref().unwrap().access_token)
     }
-    async fn get_access_token(mut self) -> Result<Self, Error> {
+    async fn get_access_token(&mut self) -> Result<(), Error> {
         use crate::rest::endpoints::ACCESS_TOKEN;
         match self
             .call_endpoint(ACCESS_TOKEN, None, Some(self.get_auth_data()))
@@ -176,7 +176,7 @@ impl TradovateClient {
                 match serde_json::from_str::<AccessTokenInfo>(&access_token_info) {
                     Ok(access_token_info) => {
                         self.access_token_info = Some(access_token_info);
-                        Ok(self)
+                        Ok(())
                     }
                     Err(e) => Err(Error::Json(e)),
                 }
@@ -187,31 +187,31 @@ impl TradovateClient {
     /// This function will return a new instance of the client with an access token.
     /// It will either load the token from the auth file, check that its still valid, or
     /// request a new one.
-    pub async fn authenticate(mut self) -> Result<Self, Error> {
+    pub async fn authenticate(&mut self) -> Result<(), Error> {
         match crate::utils::open_json(AUTH_FILENAME) {
             Ok(access_token_info) => {
                 match serde_json::from_value::<AccessTokenInfo>(access_token_info) {
                     Ok(access_token_info) => {
                         if access_token_info.is_expired() {
                             delete_file(AUTH_FILENAME);
-                            let client = self.get_access_token().await?;
+                            self.get_access_token().await?;
                             crate::utils::create_json_file(
                                 AUTH_FILENAME,
-                                &client.access_token_info,
+                                &self.access_token_info,
                             );
-                            Ok(client)
+                            Ok(())
                         } else {
                             self.access_token_info = Some(access_token_info);
-                            Ok(self)
+                            Ok(())
                         }
                     }
                     Err(e) => Err(Error::Json(e)),
                 }
             }
             Err(_) => {
-                let client = self.get_access_token().await?;
-                crate::utils::create_json_file(AUTH_FILENAME, &client.access_token_info);
-                Ok(client)
+                self.get_access_token().await?;
+                crate::utils::create_json_file(AUTH_FILENAME, &self.access_token_info);
+                Ok(())
             }
         }
     }
@@ -298,6 +298,17 @@ impl TradovateClient {
                 }
             },
             Err(e) => Err(Error::Reqwest(e)),
+        }
+    }
+    /// This function will get the account id from the cash balances and add it to the client
+    /// so that it can be used in other calls.
+    pub async fn get_account_id(&mut self) -> Result<(),Error> {
+        let cash_balances = self.get_cash_balances().await?;
+        if let Some(balance) = cash_balances.first() {
+            self.account_id = Some(balance.account_id);
+            Ok(())
+        } else {
+            Err(Error::Other("No cash balances found".to_string()))
         }
     }
 }
