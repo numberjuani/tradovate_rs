@@ -51,6 +51,7 @@ pub struct TradovateClient {
     secret: String,
     pub access_token_info: Option<AccessTokenInfo>,
     pub http_client: reqwest::Client,
+    pub account_id: Option<i64>,
 }
 impl TradovateClient {
     /// The `TradovateClient` struct contains all the necessary information to make requests to Tradovate's api.
@@ -80,6 +81,7 @@ impl TradovateClient {
             username,
             password,
             http_client: client,
+            account_id: None,
         }
     }
     /// This function will load the necessary values from the user's environment variables.
