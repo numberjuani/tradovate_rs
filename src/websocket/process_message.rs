@@ -1,5 +1,11 @@
 
+
+
+use std::sync::Arc;
+
 use serde_json::{Value, Map};
+use tokio::sync::Notify;
+
 
 
 
@@ -15,7 +21,7 @@ pub enum TradovateWSError {
     TooManyRetries,
 }
 
-pub async fn parse_messages(message:String,orderbooks_rwl:OrderBooksRWL,time_and_sales_rwl:TimeAndSalesRWL) -> Result<(),TradovateWSError> {
+pub async fn parse_messages(message:String,orderbooks_rwl:OrderBooksRWL,time_and_sales_rwl:TimeAndSalesRWL,notify:Arc<Notify>) -> Result<(),TradovateWSError> {
     if message.len() < 3 {
         return Ok(())
     }
@@ -53,6 +59,7 @@ pub async fn parse_messages(message:String,orderbooks_rwl:OrderBooksRWL,time_and
                                         if let Some(combined) = chart_data.combine_all_ticks() {
                                             let mut ts = time_and_sales_rwl.write().await;
                                             ts.push(combined);
+                                            notify.notify_one();
                                         }
                                         Ok(())
                                     },
@@ -74,7 +81,7 @@ pub async fn parse_messages(message:String,orderbooks_rwl:OrderBooksRWL,time_and
                         }
                     },
                     Err(e) => {
-                        error!("error parsing market data type: {}", e);
+                        error!("error parsing market data type: {} {:#?}", e, json_data);
                         Err(TradovateWSError::ParseError(e))
                     }
                 }

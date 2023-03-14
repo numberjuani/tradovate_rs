@@ -123,3 +123,6 @@ impl MarketDataRequest {
 
 
 
+pub fn user_sync_request(request_id: usize) -> String {
+    format!("user/syncrequest\n{}\n\n", request_id)
+}

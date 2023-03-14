@@ -1,46 +1,55 @@
+use std::sync::Arc;
 
-
-use crate::{client::{Protocol, ResourceType, TradovateClient}, models::{orderbook::{OrderBooksRWL}, time_and_sales::{TimeAndSalesRWL}, quotes::QuotesRWL}, websocket::market_replay::replay_messages};
+use crate::{
+    client::{Protocol, ResourceType, TradovateClient},
+    models::{orderbook::OrderBooksRWL, quotes::QuotesRWL, time_and_sales::TimeAndSalesRWL},
+    websocket::market_replay::replay_messages,
+};
 use chrono::{DateTime, Utc};
 use futures::{
     stream::{SplitSink, SplitStream},
     SinkExt, StreamExt,
 };
 use log::{error, info, warn};
-use tokio::{net::TcpStream};
+use tokio::{net::TcpStream, sync::Notify};
 use tokio_tungstenite::{
     tungstenite::{Error, Message},
     MaybeTlsStream, WebSocketStream,
 };
 pub type WriteWs = SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>;
 pub type ReadWs = SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>;
-use super::{requests::MarketDataRequest, market_replay::MarketReplaySettings, process_message::parse_messages};
+use super::{
+    market_replay::MarketReplaySettings, process_message::parse_messages,
+    requests::MarketDataRequest,
+};
 use crate::websocket::connection::Message::Text;
 
 pub async fn keep_listening(
-    mut reader:ReadWs,
+    mut reader: ReadWs,
     orderbooks_rwl: OrderBooksRWL,
     time_and_sales_rwl: TimeAndSalesRWL,
+    notify:Arc<Notify>
 ) -> Result<(), Error> {
     while let Some(msg) = reader.next().await {
         match msg {
-            Ok(msg) => {
-                match msg {
-                    Message::Text(txtmsg) => {
-                        if let Err(e) = parse_messages(txtmsg, orderbooks_rwl.clone(), time_and_sales_rwl.clone()).await {
-                            error!("Error in websocket {:#?}", e);
-                            return Err(Error::ConnectionClosed);
-                        }
-                    },
-                    Message::Close(_) => {
-                        warn!("Received close message");
-                        return Ok(());
+            Ok(msg) => match msg {
+                Message::Text(txtmsg) => {
+                    if let Err(e) =
+                        parse_messages(txtmsg, orderbooks_rwl.clone(), time_and_sales_rwl.clone(),notify.clone())
+                            .await
+                    {
+                        error!("Error in websocket {:#?}", e);
+                        return Err(Error::ConnectionClosed);
                     }
-                    _ => {
-                        error!("Received unexpected message: {:?}", msg);
-                    },
                 }
-            }
+                Message::Close(_) => {
+                    warn!("Received close message");
+                    return Ok(());
+                }
+                _ => {
+                    error!("Received unexpected message: {:?}", msg);
+                }
+            },
             Err(e) => {
                 error!("Error: {}", e);
                 break;
@@ -49,7 +58,6 @@ pub async fn keep_listening(
     }
     Ok(())
 }
-
 
 pub async fn send_heartbeats(mut writer: WriteWs) -> Result<(), Error> {
     let mut interval = tokio::time::interval(std::time::Duration::from_millis(2502));
@@ -65,18 +73,27 @@ impl TradovateClient {
         requests: &[MarketDataRequest],
         orderbooks_rwl: OrderBooksRWL,
         time_and_sales_rwl: TimeAndSalesRWL,
+        notify:Arc<Notify>
     ) -> Result<(), Error> {
         let url = self.url(ResourceType::MarketData, Protocol::Wss);
         let (ws_stream, response) = tokio_tungstenite::connect_async(url).await?;
-        info!("Connected to market data socket, status {:#?}", response.status());
+        info!(
+            "Connected to market data socket, status {:#?}",
+            response.status()
+        );
         let (mut write, reader) = ws_stream.split();
+        let mut string_requests = Vec::new();
         write.send(Text(self.ws_auth_msg())).await?;
+        //string_requests.push(user_sync_request(1));
         for (index, request) in requests.iter().enumerate() {
-            write.send(Text(request.subscribe(index + 2))).await?;
+            string_requests.push(request.subscribe(index + 3));
+        }
+        for string_request in string_requests {
+            write.send(Text(string_request)).await?;
         }
         tokio::select!(
             biased;
-            listen_result = tokio::spawn(keep_listening(reader,orderbooks_rwl,time_and_sales_rwl)) => {
+            listen_result = tokio::spawn(keep_listening(reader,orderbooks_rwl,time_and_sales_rwl,notify.clone())) => {
                 if let Err(e) = listen_result.unwrap() {
                     error!("Error in websocket {:#?}", e);
                     return Err(Error::ConnectionClosed);

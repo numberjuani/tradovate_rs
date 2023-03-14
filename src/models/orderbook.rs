@@ -9,6 +9,7 @@ use rayon::prelude::IntoParallelRefMutIterator;
 use rayon::prelude::ParallelIterator;
 use rayon::slice::ParallelSliceMut;
 use rust_decimal::Decimal;
+use rust_decimal::prelude::ToPrimitive;
 use serde::de;
 use serde::Deserialize;
 use serde::Deserializer;
@@ -81,9 +82,8 @@ impl OrderBook {
         out.push(ratio);
         let normalized = self.normalize(total_bid,total_ask);
         for i in 0..30 {
-            out.push(normalized.bids[i].size as f32);
-            out.push(normalized.asks[i].size as f32);
-        }
+            out.push(normalized.bids.get(i).unwrap_or(&Depth::default()).size as f32);
+            out.push(normalized.asks.get(i).unwrap_or(&Depth::default()).size as f32);        }
         out
     }
 }
