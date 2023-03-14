@@ -164,7 +164,7 @@ impl TradovateClient {
         Ok(response.text().await?)
     }
     pub fn ws_auth_msg(&self) -> String {
-        format!("authorize\n1\n\n{}", self.access_token_info.as_ref().unwrap().access_token)
+        format!("authorize\n0\n\n{}", self.access_token_info.as_ref().unwrap().access_token)
     }
     async fn get_access_token(&mut self) -> Result<(), Error> {
         use crate::rest::endpoints::ACCESS_TOKEN;

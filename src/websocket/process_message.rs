@@ -10,7 +10,7 @@ use tokio::sync::Notify;
 
 
 use crate::models::{tick_chart::ChartData, orderbook::{OrderBooks, OrderBooksRWL}, time_and_sales::TimeAndSalesRWL};
-use log::{error, warn, info, debug};
+use log::{error, warn, info};
 use super::requests::MarketData;
 
 #[derive(Debug)]
@@ -27,6 +27,7 @@ pub async fn parse_messages(message:String,orderbooks_rwl:OrderBooksRWL,time_and
     }
     match serde_json::from_str::<Map<String,Value>>(&message[2..message.len()-1]) {
         Ok(json_data) => {
+            println!("{:#?}", json_data);
             if json_data.contains_key("e") {
                 let key_to_match = if json_data["e"].as_str().unwrap() == "md" {
                     json_data["d"].clone().as_object().unwrap().keys().next().unwrap().to_string()
@@ -87,7 +88,7 @@ pub async fn parse_messages(message:String,orderbooks_rwl:OrderBooksRWL,time_and
                 }
             } else if json_data.contains_key("s") {
                 if json_data["s"].as_i64().unwrap() == 200 {
-                    debug!("successfully subscribed to market data");
+                    info!("successfully subscribed to market data");
                     return Ok(())
                 } else {
                     error!("received error message from server");
